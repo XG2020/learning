@@ -59,6 +59,7 @@ _COMMON_TERMS = {
 _COMMAND_PREFIXES = ("/", "!", "！")
 _EMOJI_RE = re.compile("[\U0001F300-\U0001FAFF\u2600-\u27BF]")
 _TERM_RE = re.compile(r"[A-Za-z][A-Za-z0-9_+-]{1,19}|[\u4e00-\u9fff]{2,6}")
+_IDENTITY_RE = re.compile(r"(?:用户|发送者|成员|联系人)?\s*(?:昵称|用户名|用户\s*名|姓名|名字|称呼|id)\s*(?:是|为|叫|:|：)?", re.IGNORECASE)
 
 
 def normalize_text(text: str) -> str:
@@ -191,6 +192,53 @@ def parse_llm_proposal(raw: str, metrics: StyleMetrics) -> ProfileProposal:
     )
 
 
+def sanitize_llm_proposal(proposal: ProfileProposal, samples: list[LearningSample]) -> ProfileProposal:
+    """移除模型误识别出的发送者身份信息，避免昵称/用户 ID 进入学习档案。"""
+    identities = {
+        normalize_text(value).casefold()
+        for sample in samples
+        for value in (sample.sender_name, sample.sender_id)
+        if normalize_text(value)
+    }
+
+    def is_identity_item(value: str) -> bool:
+        normalized = normalize_text(value)
+        folded = normalized.casefold()
+        if not normalized:
+            return True
+        if folded in identities:
+            return True
+        return bool(_IDENTITY_RE.search(normalized) and any(identity in folded for identity in identities if identity))
+
+    def clean_items(values: list[str]) -> list[str]:
+        return [value for value in values if not is_identity_item(value)]
+
+    clean_jargon: dict[str, str] = {}
+    for term, meaning in proposal.jargon.items():
+        clean_term = normalize_text(term)
+        clean_meaning = normalize_text(meaning)
+        if not clean_term or clean_term.casefold() in identities:
+            continue
+        if _IDENTITY_RE.search(clean_meaning) and any(identity in clean_meaning.casefold() for identity in identities if identity):
+            continue
+        clean_jargon[clean_term] = clean_meaning
+
+    style_summary = proposal.style_summary
+    for identity in sorted(identities, key=len, reverse=True):
+        if identity:
+            style_summary = re.sub(re.escape(identity), "该用户", style_summary, flags=re.IGNORECASE)
+    style_summary = _IDENTITY_RE.sub("", style_summary).strip(" ，,；;。.")
+
+    return ProfileProposal(
+        style_summary=style_summary,
+        reply_guidance=clean_items(proposal.reply_guidance),
+        persona_observations=clean_items(proposal.persona_observations),
+        user_preferences=clean_items(proposal.user_preferences),
+        jargon=clean_jargon,
+        metrics=proposal.metrics,
+    )
+
+
 def merge_rule_and_llm(rule: ProfileProposal, llm: ProfileProposal) -> ProfileProposal:
     return ProfileProposal(
         style_summary=llm.style_summary or rule.style_summary,
@@ -204,7 +252,9 @@ def merge_rule_and_llm(rule: ProfileProposal, llm: ProfileProposal) -> ProfilePr
 
 def build_analysis_prompt(samples: list[LearningSample]) -> str:
     conversation = "\n".join(
-        f"[{sample.sender_name or sample.sender_id}] {sample.text[:500]}" for sample in samples
+        f"- 发送者元数据（仅用于区分消息，绝不是学习对象）：{sample.sender_name or sample.sender_id}\n"
+        f"  消息正文（只分析这一部分）：{sample.text[:500]}"
+        for sample in samples
     )
     return f"""分析以下频道消息，提取可用于后续对话适配的稳定特征。
 
@@ -213,7 +263,8 @@ def build_analysis_prompt(samples: list[LearningSample]) -> str:
 2. 不推断年龄、性别、健康、政治、宗教、种族、财务等敏感属性。
 3. persona_observations 只能描述可观察的交流倾向，不能给用户贴人格或心理诊断标签。
 4. reply_guidance 应是可执行、克制的回复建议，不得要求无条件模仿错误信息、攻击性或危险行为。
-5. 没有证据的字段返回空数组或空对象。
+5. 发送者元数据中的昵称、用户名、用户 ID、称呼都不是消息内容，严禁把它们输出到 style_summary、persona_observations、user_preferences 或 jargon。
+6. 不要记录任何用户身份标识；没有证据的字段返回空数组或空对象。
 
 仅返回以下 JSON，不要附加说明：
 {{

@@ -28,6 +28,7 @@ from .analyzer import (
     build_rule_proposal,
     merge_rule_and_llm,
     parse_llm_proposal,
+    sanitize_llm_proposal,
     should_collect_text,
 )
 from .models import (
@@ -302,6 +303,7 @@ async def _analyze_samples(samples: list[LearningSample]) -> tuple[ProfilePropos
             await _call_learning_llm(build_analysis_prompt(samples)),
             rule_proposal.metrics,
         )
+        llm_proposal = sanitize_llm_proposal(llm_proposal, samples)
         return merge_rule_and_llm(rule_proposal, llm_proposal), "mixed", ""
     except Exception as exc:
         logger.warning("学习 LLM 分析失败，退回规则分析: %s", exc)
