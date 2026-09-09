@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>自学习管理</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#101317; color:#e9edf2; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:#0e141b; }
+    main { width:min(1220px,calc(100% - 48px)); margin:0 auto; padding:34px 0 56px; }
+    header { display:flex; justify-content:space-between; align-items:flex-end; gap:24px; margin-bottom:26px; }
+    h1 { margin:0; font-size:32px; letter-spacing:0; }
+    p { color:#aab4c0; margin:8px 0 0; }
+    .toolbar,.panel { background:#151c24; border:1px solid #2c3743; border-radius:12px; box-shadow:0 14px 40px #0004; }
+    .toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:14px; margin-bottom:18px; }
+    select,input,button { min-height:38px; border-radius:6px; border:1px solid #3c4753; background:#101419; color:#e9edf2; padding:0 12px; font:inherit; }
+    select { min-width:260px; }
+    button { cursor:pointer; background:#2d7bb5; border-color:#4b9bd0; }
+    button.secondary { background:#242c35; border-color:#4b5865; }
+    button.danger { background:#783b43; border-color:#a95560; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .status { margin-left:auto; color:#9db6c9; font-size:13px; }
+    .grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
+    .metric { padding:16px; }
+    .metric strong { display:block; font-size:28px; margin-top:8px; color:#f4f8fc; }
+    .metric span { color:#9ca8b5; font-size:13px; }
+    .columns { display:grid; grid-template-columns:1.1fr .9fr; gap:18px; }
+    .panel { padding:18px; }
+    .panel h2 { font-size:18px; margin:0 0 14px; }
+    .panel h3 { font-size:13px; color:#8ea1b3; text-transform:uppercase; letter-spacing:.08em; margin:20px 0 8px; }
+    .review { padding:14px 0; border-top:1px solid #303943; }
+    .review:first-child { border-top:0; padding-top:0; }
+    .review-title { display:flex; justify-content:space-between; gap:12px; }
+    .badge { display:inline-flex; align-items:center; border-radius:999px; padding:3px 8px; font-size:12px; background:#273543; color:#a9d4f1; }
+    .badge.pending { background:#5b4723; color:#f3d792; }
+    .badge.rejected { background:#512d35; color:#efadb5; }
+    ul { margin:8px 0 0 18px; padding:0; color:#c3ccd5; }
+    li { margin:4px 0; }
+    pre { white-space:pre-wrap; word-break:break-word; margin:0; color:#c8d1db; font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .empty { color:#8e9aa8; padding:18px 0; }
+    #login { max-width:420px; margin:15vh auto 0; padding:24px; }
+    #login h1 { font-size:24px; }
+    #login form { display:flex; gap:10px; margin-top:18px; }
+    #login input { flex:1; }
+    .hidden { display:none !important; }
+    .switch { display:inline-flex; align-items:center; gap:9px; color:#c1ceda; font-size:13px; margin-left:auto; }
+    .switch input { display:none; }
+    .slider { width:42px; height:24px; border-radius:999px; background:#35424e; position:relative; cursor:pointer; transition:.2s; }
+    .slider:after { content:""; position:absolute; width:18px; height:18px; top:3px; left:3px; border-radius:50%; background:#dfe7ee; transition:.2s; }
+    .switch input:checked + .slider { background:#2d8d68; }
+    .switch input:checked + .slider:after { transform:translateX(18px); }
+    .notice { padding:12px 14px; margin-bottom:18px; border:1px solid #35506a; border-radius:10px; background:#142535; color:#bdd8ef; font-size:13px; }
+    .memory-list { margin-top:18px; }
+    .memory-item { padding:13px 0; border-top:1px solid #2c3743; }
+    .memory-item strong { color:#d8e4ee; }
+    .memory-item p { font-size:13px; line-height:1.55; }
+    @media (max-width:800px) { main { width:min(100% - 20px,620px); padding-top:20px; } header { display:block; } .status { display:block; margin:14px 0 0; } .grid,.columns { grid-template-columns:1fr 1fr; } .columns { grid-template-columns:1fr; } select { flex:1; min-width:180px; } }
+    @media (max-width:480px) { .grid { grid-template-columns:1fr 1fr; } #login form { display:block; } #login button { width:100%; margin-top:10px; } }
+  </style>
+</head>
+<body>
+  <section id="login" class="panel">
+    <h1>自学习管理</h1>
+    <p>请输入插件配置中的 WebUI 访问密码。</p>
+    <form id="login-form"><input id="password" type="password" autocomplete="current-password" placeholder="访问密码"><button type="submit">进入管理页</button></form>
+    <p id="login-error" class="hidden"></p>
+  </section>
+  <main id="app" class="hidden">
+    <header><div><h1>自学习管理</h1><p>查看频道学习状态，审批学习结果，维护已注入的学习档案。</p></div><button id="logout" class="secondary">退出</button></header>
+    <section class="toolbar"><select id="chat-select"></select><button id="refresh">刷新</button><button id="learn">立即学习</button><button id="sync" class="secondary">同步长期记忆</button><button id="clear" class="danger">清理频道数据</button><label class="switch"><input id="memory-toggle" type="checkbox"><span class="slider"></span>写入长期记忆</label><span id="status" class="status"></span></section>
+    <div id="notice" class="notice hidden"></div>
+    <section class="grid"><div class="panel metric"><span>待学习样本</span><strong id="buffered">0</strong></div><div class="panel metric"><span>已应用样本</span><strong id="applied">0</strong></div><div class="panel metric"><span>待审查</span><strong id="pending">0</strong></div><div class="panel metric"><span>档案版本</span><strong id="revision">0</strong></div><div class="panel metric"><span>长期记忆</span><strong id="memory-count">0</strong></div></section>
+    <section class="columns"><article class="panel"><h2>学习档案</h2><div id="profile"></div></article><article class="panel"><h2>审查记录</h2><div id="reviews"></div></article></section>
+    <section class="panel memory-list"><h2>已同步的长期记忆</h2><div id="memories"></div></section>
+  </main>
+  <script>
+    const base = location.pathname.replace(/\/$/, '');
+    const tokenKey = 'learning-webui-password';
+    let token = sessionStorage.getItem(tokenKey) || '';
+    let currentChat = '';
+    const $ = id => document.getElementById(id);
+    function authHeaders() { return token ? {'X-Learning-Password': token} : {}; }
+    async function api(path, options = {}) {
+      const response = await fetch(base + path, { ...options, headers: {...authHeaders(), ...(options.headers || {})} });
+      if (response.status === 401) { showLogin('密码错误或已失效。'); throw new Error('unauthorized'); }
+      if (!response.ok) throw new Error((await response.text()) || `HTTP ${response.status}`);
+      return response.json();
+    }
+    function showLogin(message = '') { $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('login-error').textContent = message; $('login-error').classList.toggle('hidden', !message); }
+    function showApp() { $('login').classList.add('hidden'); $('app').classList.remove('hidden'); }
+    function setStatus(text, error = false) { $('status').textContent = text; $('status').style.color = error ? '#efadb5' : '#9db6c9'; }
+    function renderList(items) { return items && items.length ? `<ul>${items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : '<div class="empty">暂无记录</div>'; }
+    function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
+    function renderProfile(profile) {
+      $('profile').innerHTML = `<p>${escapeHtml(profile.style_summary || '暂无风格摘要')}</p><h3>回复建议</h3>${renderList(profile.reply_guidance)}<h3>明确偏好</h3>${renderList(profile.user_preferences)}<h3>频道词汇</h3><pre>${escapeHtml(JSON.stringify(profile.jargon || {}, null, 2))}</pre>`;
+    }
+    function renderReviews(reviews) {
+      if (!reviews.length) { $('reviews').innerHTML = '<div class="empty">暂无审查记录</div>'; return; }
+      $('reviews').innerHTML = reviews.slice().reverse().map(review => { const p = review.proposal || {}; const badge = review.status === 'pending' ? 'pending' : review.status === 'rejected' ? 'rejected' : ''; const label = review.status === 'pending' ? '待审查' : review.status === 'rejected' ? '已拒绝' : '已批准'; return `<div class="review"><div class="review-title"><strong>${escapeHtml(review.review_id)}</strong><span class="badge ${badge}">${label}</span></div><p>${escapeHtml(p.style_summary || '无风格摘要')}</p>${review.status === 'pending' ? `<button data-action="approve" data-id="${escapeHtml(review.review_id)}">批准</button> <button class="danger" data-action="reject" data-id="${escapeHtml(review.review_id)}">拒绝</button>` : ''}</div>`; }).join('');
+    }
+    function renderMemories(memory) { $('memory-count').textContent = memory.plugin_memory_count || 0; if (!memory.items || !memory.items.length) { $('memories').innerHTML = '<div class="empty">当前频道还没有由本插件写入的长期记忆</div>'; return; } $('memories').innerHTML = memory.items.map(item => `<div class="memory-item"><strong>#${item.id} · ${escapeHtml(item.summary)}</strong><p>${escapeHtml(item.content)}</p></div>`).join(''); }
+    async function loadChats() { const data = await api('/api/chats'); const select = $('chat-select'); select.innerHTML = data.chats.map(chat => `<option value="${escapeHtml(chat.chat_key)}">${escapeHtml(chat.chat_key)} · ${chat.buffered_samples} 条待学习</option>`).join(''); if (!currentChat && data.chats.length) currentChat = data.chats[0].chat_key; select.value = currentChat; }
+    async function loadSettings() { const data = await api('/api/settings?chat_key=' + encodeURIComponent(currentChat)); $('memory-toggle').checked = !!data.enable_long_term_memory_write; $('sync').disabled = !data.memory_system_available; $('notice').textContent = data.memory_system_available ? '当前频道已绑定工作区，开启后批准的学习结果会进入 Nekro 长期记忆。' : '当前没有可用的工作区长期记忆，先绑定工作区后才能同步。'; $('notice').classList.remove('hidden'); }
+    async function loadState() { if (!currentChat) return; const data = await api('/api/state?chat_key=' + encodeURIComponent(currentChat)); $('buffered').textContent = data.state.buffered_samples; $('applied').textContent = data.state.profile_sample_count; $('pending').textContent = data.state.pending_reviews; $('revision').textContent = data.state.profile_revision; renderProfile(data.profile); renderReviews(data.reviews); renderMemories(data.long_term_memory); setStatus(`当前频道：${currentChat}`); }
+    async function refresh() { try { await loadChats(); await loadSettings(); await loadState(); showApp(); } catch (error) { if (error.message !== 'unauthorized') setStatus(error.message, true); } }
+    $('login-form').addEventListener('submit', async event => { event.preventDefault(); token = $('password').value; sessionStorage.setItem(tokenKey, token); try { await refresh(); } catch (_) {} });
+    $('logout').addEventListener('click', () => { token = ''; sessionStorage.removeItem(tokenKey); showLogin(); });
+    $('chat-select').addEventListener('change', async event => { currentChat = event.target.value; await loadSettings(); await loadState(); });
+    $('refresh').addEventListener('click', refresh);
+    $('memory-toggle').addEventListener('change', async event => { try { const result = await api('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enable_long_term_memory_write: event.target.checked})}); setStatus(result.message); } catch (error) { event.target.checked = !event.target.checked; setStatus(error.message, true); } });
+    $('sync').addEventListener('click', async () => { try { const result = await api('/api/memory/sync', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({chat_key: currentChat})}); setStatus(result.message); } catch (error) { setStatus(error.message, true); } });
+    $('learn').addEventListener('click', async () => { try { const result = await api('/api/learn', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({chat_key: currentChat})}); setStatus(result.message); await refresh(); } catch (error) { setStatus(error.message, true); } });
+    $('clear').addEventListener('click', async () => { if (!confirm('确认清理当前频道的全部学习数据？')) return; try { const result = await api('/api/clear', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({chat_key: currentChat})}); setStatus(result.message); await refresh(); } catch (error) { setStatus(error.message, true); } });
+    $('reviews').addEventListener('click', async event => { const button = event.target.closest('button[data-action]'); if (!button) return; try { const result = await api('/api/reviews/' + button.dataset.action, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({chat_key: currentChat, review_id: button.dataset.id})}); setStatus(result.message); await refresh(); } catch (error) { setStatus(error.message, true); } });
+    refresh();
+  </script>
+</body>
+</html>
