@@ -10,14 +10,12 @@
 - 提供 Agent 工具和超级用户命令：状态、强制学习、采集开关、批准/拒绝、手动记忆和清理。
 
 ## 安装
-
-将整个 `learning` 文件夹复制到运行实例的本地插件目录：
+1. 在NA应用市场下载，自动安装。
+2. 将整个 `learning` 文件夹复制到运行实例的本地插件目录：
 
 ```text
 data/nekro_agent/plugins/workdir/learning/
 ```
-
-然后在插件管理页重载 `learning`。本仓库中的 `plugins/learning` 是可直接复制的独立源码目录。
 
 ## 配置
 
