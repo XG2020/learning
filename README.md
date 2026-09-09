@@ -1,6 +1,6 @@
 # 自学习插件
 
-这是一个独立的 Nekro Agent 插件，参考 `self_learning` 的核心闭环实现，使用 Nekro 原生插件接口。
+这是一个独立的 Nekro Agent 插件，参考 `self_learning` 的核心闭环实现对话风格学习功能，使用 Nekro 原生插件接口。
 
 - `mount_on_user_message` 采集频道用户消息，并过滤命令、机器人消息、短噪声和黑名单消息；
 - 按频道持久化待学习样本、学习档案和审查记录，使用 `PluginStore`，无需迁移数据库；
