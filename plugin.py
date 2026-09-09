@@ -2,6 +2,7 @@ from pydantic import Field
 
 from nekro_agent.api import i18n
 from nekro_agent.api.plugin import ConfigBase, ExtraField, NekroPlugin
+from nekro_agent.core.config import config as core_config
 
 
 plugin = NekroPlugin(
@@ -153,7 +154,24 @@ class LearningConfig(ConfigBase):
     MESSAGE_MAX_LENGTH: int = Field(default=500, ge=20, le=5000, title="最长消息长度")
     MAX_REVIEWS: int = Field(default=30, ge=1, le=200, title="保留审查记录数")
     MAX_PROMPT_CHARS: int = Field(default=3000, ge=500, le=12000, title="最大注入字符数")
-    MODEL_GROUP: str = Field(default="", title="学习模型组", description="留空时使用 Nekro 当前默认模型组")
+    MODEL_GROUP: str = Field(
+        default=core_config.USE_MODEL_GROUP,
+        title="学习模型组",
+        description="用于提炼表达风格、偏好和频道词汇的聊天模型组；留空时使用 Nekro 当前默认模型组",
+        json_schema_extra=ExtraField(
+            ref_model_groups=True,
+            required=True,
+            model_type="chat",
+            i18n_title=i18n.i18n_text(
+                zh_CN="学习模型组",
+                en_US="Learning Model Group",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="用于提炼表达风格、偏好和频道词汇的聊天模型组；留空时使用 Nekro 当前默认模型组",
+                en_US="Chat model group used to extract style, preferences, and channel vocabulary; leave blank to use Nekro's active default model group",
+            ),
+        ).model_dump(),
+    )
     TARGET_CHAT_KEYS: list[str] = Field(default_factory=list, title="学习频道白名单")
     CHAT_KEY_BLACKLIST: list[str] = Field(default_factory=list, title="学习频道黑名单")
     SENDER_BLACKLIST: list[str] = Field(default_factory=list, title="发送者黑名单")
